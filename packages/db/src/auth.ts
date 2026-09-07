@@ -64,7 +64,7 @@ export function createAuth(env: BetterAuthEnv) {
         clientId: env.GITHUB_CLIENT_ID,
         clientSecret: env.GITHUB_CLIENT_SECRET,
         mapProfileToUser: (profile) => ({
-          slug: profile.login
+          slug: profile.login.toLowerCase()
         })
       }
     },
@@ -86,6 +86,11 @@ export function createAuth(env: BetterAuthEnv) {
               },
               plan: {
                 type: 'string',
+                required: false,
+                input: true
+              },
+              displayCollections: {
+                type: 'boolean',
                 required: false,
                 input: true
               },

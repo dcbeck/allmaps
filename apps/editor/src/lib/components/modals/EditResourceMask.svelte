@@ -1,12 +1,13 @@
 <script lang="ts">
   // import { parseResourceMask } from '@allmaps/io'
 
-  import { Modal } from '@allmaps/components'
+  import { Modal } from '@allmaps/ui'
 
   import FileUpload from '$lib/components/UploadFile.svelte'
   import Textarea from '$lib/components/Textarea.svelte'
   import Message from '$lib/components/Message.svelte'
   import YesNo from '$lib/components/YesNo.svelte'
+  import { m } from '$lib/paraglide/messages.js'
 
   import type { GeoreferencedMap } from '@allmaps/annotation'
 
@@ -21,9 +22,14 @@
 
   let { open = $bindable(), map, onsubmit }: Props = $props()
 
-  let resourceDimensions = $derived(
-    map.resource ? [map.resource.width, map.resource.height] : undefined
-  )
+  let resourceDimensions = $derived.by<[number, number] | undefined>(() => {
+    const width = map.resource?.width
+    const height = map.resource?.height
+
+    if (width !== undefined && height !== undefined) {
+      return [width, height]
+    }
+  })
 
   let resourceMaskString = $state<string>(
     resourceMaskToString(map.resourceMask)
@@ -35,7 +41,7 @@
 
   function getMessageFromResourceMask(resourceMask: ResourceMask): MessageType {
     return {
-      text: `Successfully parsed mask with ${resourceMask.length} points`,
+      text: m.successfully_parsed_mask({ count: resourceMask.length }),
       type: 'success'
     }
   }
@@ -52,10 +58,10 @@
       if (!isNaN(x) && !isNaN(y)) {
         return [x, y]
       } else {
-        throw new Error(`Couldn't parse ${x},${y} as numbers`)
+        throw new Error(m.parse_numbers_error({ x, y }))
       }
     } else {
-      throw new Error(`Line does not have two parts: ${pair}`)
+      throw new Error(m.line_two_parts_error({ pair: pair.join(',') }))
     }
   }
 
@@ -76,7 +82,7 @@
       ) {
         resourceMask = jsonResourceMask
       } else {
-        throw new Error('Resource mask is not a valid array of points')
+        throw new Error(m.invalid_resource_mask_array())
       }
     } catch {
       // Not JSON. Try other formats
@@ -116,9 +122,7 @@
             return parseCoordinatePair(pair)
           })
         } catch {
-          throw new Error(
-            'Each line should be of the form "x,y" where x and y are numbers'
-          )
+          throw new Error(m.coordinate_line_format_error())
         }
       }
     }
@@ -127,11 +131,11 @@
       if (resourceMask.length >= 3) {
         return resourceMask
       } else {
-        throw new Error('Resource mask should have at least 3 points')
+        throw new Error(m.resource_mask_minimum_points())
       }
     }
 
-    throw new Error('Could not parse resource mask')
+    throw new Error(m.resource_mask_parse_error())
   }
 
   $effect(() => {
@@ -151,7 +155,7 @@
     } else {
       resourceMask = []
       message = {
-        text: 'No mask provided',
+        text: m.no_mask_provided(),
         type: 'info'
       }
       return
@@ -170,28 +174,29 @@
 
 <Modal bind:open>
   {#snippet title()}
-    Edit Mask
+    {m.edit_mask_title()}
   {/snippet}
 
-  <p>
-    Edit the mask of the current map in the text field below. Supported formats:
-  </p>
+  <p>{m.edit_mask_description()}</p>
 
   <ul class="list-inside list-disc">
     <li>
-      Plain text list of coordinate pairs, one per line, e.g. <code
+      {m.plain_text_coordinate_pairs()}
+      <code
         class="rounded-sm border border-gray-100 bg-gray-100/50 px-1 font-mono text-gray-700"
         >x,y</code
       >
     </li>
     <li>
-      JSON array of coordinate pairs, e.g. <code
+      {m.json_coordinate_pairs()}
+      <code
         class="rounded-sm border border-gray-100 bg-gray-100/50 px-1 font-mono text-gray-700"
         >[[x1,y1],[x2,y2],[x3,y3]]</code
       >
     </li>
     <li>
-      SVG polygon, e.g. <code
+      {m.svg_polygon()}
+      <code
         class="rounded-sm border border-gray-100 bg-gray-100/50 px-1 font-mono text-gray-700"
         >&lt;polygon points="x1,y1 x2,y2 x3,y3"/&gt;</code
       >
@@ -199,8 +204,10 @@
   </ul>
   {#if resourceDimensions}
     <p>
-      The dimensions of the current image are {resourceDimensions[0]} × {resourceDimensions[1]}
-      pixels
+      {m.current_image_dimensions({
+        width: resourceDimensions[0],
+        height: resourceDimensions[1]
+      })}
     </p>
   {/if}
 
@@ -211,8 +218,8 @@
     <FileUpload bind:value={resourceMaskString} />
   </div>
   <YesNo
-    yes="Save"
-    no="Cancel"
+    yes={m.save()}
+    no={m.cancel()}
     noColor="gray"
     yesDisabled={!resourceMask.length}
     onNo={handleCancel}

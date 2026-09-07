@@ -9,7 +9,7 @@
   import { WarpedMapLayer } from '@allmaps/maplibre'
   // import { basemapStyle, addTerrain, removeTerrain } from '@allmaps/basemap'
 
-  import { getProjectionsState } from '@allmaps/components/state'
+  import { getProjectionsState } from '@allmaps/ui/state'
   import { getMapsState } from '$lib/state/maps.svelte'
   import { getMapsMergedState } from '$lib/state/maps-merged.svelte.js'
   import { getUiState } from '$lib/state/ui.svelte.js'
@@ -75,6 +75,7 @@
     warpedMapsOpacity = 1,
     renderMasks = false,
     onmoveend,
+    // eslint-disable-next-line no-useless-assignment
     warpedMapLayerBounds = $bindable<LngLatBoundsLike | undefined>(),
     onBeforeSetStyle,
     onAfterSetStyle,
@@ -378,7 +379,6 @@
           layerId: 'background-warped-map-layer'
         })
 
-        // @ts-expect-error MapLibre types are incompatible
         geoMap.addLayer(backgroundWarpedMapLayer)
         geoMap.moveLayer('background-warped-map-layer', 'warped-map-layer')
       }
@@ -423,7 +423,6 @@
         setGeoreferencedMaps(maps)
       } finally {
         if (warpedMapLayer && currentMapIds.size) {
-          // @ts-expect-error incorrect MapLibre types
           warpedMapLayerBounds = warpedMapLayer.getBounds()
         }
       }
@@ -467,7 +466,6 @@
       geoMap = newGeoMap
       warpedMapLayer = new WarpedMapLayer(renderOptions)
 
-      // @ts-expect-error MapLibre types are incompatible
       newGeoMap.addLayer(warpedMapLayer)
     })
 
@@ -551,4 +549,8 @@
   })
 </script>
 
-<div bind:this={geoMapContainer} class="h-full w-full"></div>
+<div
+  bind:this={geoMapContainer}
+  data-tour="editor-geo-map"
+  class="h-full w-full"
+></div>

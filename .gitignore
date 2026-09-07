@@ -23,11 +23,11 @@ lerna-debug.log
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# Paraglide JS generated output
+**/src/lib/paraglide/
+
 .pnpm-store
 
 .turbo
 .claude
 plans
-
-# Cloudflare Worker generated TypeScript declarations
-worker-configuration.d.ts

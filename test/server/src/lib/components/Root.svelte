@@ -172,8 +172,7 @@
   type CombinedLinks = ReturnType<typeof getCombinedLinks>
 
   type CombinedResourceKind =
-    | 'Annotation page'
-    | 'IIIF Presentation 3.0 manifest'
+    'Annotation page' | 'IIIF Presentation 3.0 manifest'
 
   type CombinedScenarioLink = Link & {
     corsMode: CorsMode
@@ -663,6 +662,17 @@
               (link) =>
                 link.resourceKind === 'Annotation page' &&
                 link.label === 'Some image services return 500'
+            )
+          ),
+          createCombinedScenario(
+            'browser-only-manifest-and-image-services',
+            'Browser-only manifest and image services',
+            'The manifest, canvas JSON, image service info.jsons, and image requests require browser request headers and reject plain server-side fetches.',
+            findCombinedLink(
+              'cors',
+              (link) =>
+                link.resourceKind === 'IIIF Presentation 3.0 manifest' &&
+                link.label === 'Browser-only manifest and image services'
             )
           ),
           ...[401, 403, 404, 429, 500, 503].map((status) =>

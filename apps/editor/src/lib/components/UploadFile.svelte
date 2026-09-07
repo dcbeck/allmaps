@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { FileArrowUp as FileArrowUpIcon } from 'phosphor-svelte'
+  import { FileArrowUpIcon } from 'phosphor-svelte'
+  import { m } from '$lib/paraglide/messages.js'
 
   type Props = { value: string }
 
-  let { value = $bindable() }: Props = $props()
+  let {
+    // eslint-disable-next-line no-useless-assignment
+    value = $bindable()
+  }: Props = $props()
 
   let files = $state<FileList>()
 
@@ -30,6 +34,6 @@
     shadow-md transition-colors hover:bg-white/20"
 >
   <FileArrowUpIcon class="size-5" />
-  <span>Upload file</span>
+  <span>{m.upload_file()}</span>
   <input bind:files id="upload" type="file" class="hidden" />
 </label>

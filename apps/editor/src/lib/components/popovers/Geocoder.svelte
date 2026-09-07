@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { Geocoder } from '@allmaps/components'
+  import { Geocoder } from '@allmaps/ui'
 
   import {
     GeocodeEarthGeocoderProvider,
     WorldHistoricalGazetteerGeocoderProvider
-  } from '@allmaps/components/geocoder'
+  } from '@allmaps/ui/geocoder'
 
   import { getUiState } from '$lib/state/ui.svelte.js'
 
-  import type { GeocoderGeoJsonFeature } from '@allmaps/components/geocoder'
+  import type { GeocoderGeoJsonFeature } from '@allmaps/ui/geocoder'
   import type { Bbox } from '@allmaps/types'
 
   type Props = {
@@ -16,7 +16,11 @@
     open?: boolean
   }
 
-  let { geocodeEarthKey, open = $bindable(false) }: Props = $props()
+  let {
+    geocodeEarthKey,
+    // eslint-disable-next-line no-useless-assignment
+    open = $bindable(false)
+  }: Props = $props()
 
   const uiState = getUiState()
 
@@ -36,10 +40,12 @@
   }
 </script>
 
-<Geocoder
-  providers={[
-    new GeocodeEarthGeocoderProvider(geocodeEarthKey),
-    new WorldHistoricalGazetteerGeocoderProvider()
-  ]}
-  onselect={handleGeocoderSelect}
-/>
+<div data-tour="editor-geocoder-popover">
+  <Geocoder
+    providers={[
+      new GeocodeEarthGeocoderProvider(geocodeEarthKey),
+      new WorldHistoricalGazetteerGeocoderProvider()
+    ]}
+    onselect={handleGeocoderSelect}
+  />
+</div>

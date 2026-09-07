@@ -1,4 +1,5 @@
 import { ResponseError } from './errors.js'
+import { isOrganizationPlan } from './tiers.js'
 
 import type {
   ContainedBy,
@@ -34,8 +35,6 @@ const mapsQueryParamNames: Record<string, MapsQueryParamName> = {
   modifiedafter: 'modifiedAfter',
   modifiedbefore: 'modifiedBefore'
 }
-
-const organizationPlans = new Set<OrganizationPlan>(['supporter', 'innovator'])
 
 const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/
 const utcDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
@@ -98,8 +97,8 @@ function parseContainedBy(containedBy?: number[]): ContainedBy | undefined {
 }
 
 function parseOrganizationPlanParam(value: string) {
-  if (organizationPlans.has(value as OrganizationPlan)) {
-    return value as OrganizationPlan
+  if (isOrganizationPlan(value)) {
+    return value
   }
 
   throw new ResponseError(`Invalid query parameter plan: ${value}`, 400)
@@ -109,18 +108,43 @@ export function normalizeOrganizationsQueryParams(
   request: Request
 ): Partial<OrganizationsQueryParams> {
   const searchParams = new URL(request.url).searchParams
+  const organizationIds = new Set<string>()
+  const organizationSlugs = new Set<string>()
   const plans = new Set<OrganizationPlan>()
   const params: Partial<OrganizationsQueryParams> = {}
 
   for (const [key, value] of searchParams) {
     switch (key.toLowerCase()) {
+      case 'id':
+        organizationIds.add(value)
+        break
+      case 'slug':
+        organizationSlugs.add(value)
+        break
       case 'limit':
         params.limit = parseNumberParam('limit', value)
         break
       case 'plan':
         plans.add(parseOrganizationPlanParam(value))
         break
+      case 'displaycollections':
+        if (value !== 'true' && value !== 'false') {
+          throw new ResponseError(
+            `Invalid query parameter displayCollections: ${value}`,
+            400
+          )
+        }
+        params.displayCollections = value === 'true'
+        break
     }
+  }
+
+  if (organizationIds.size > 0) {
+    params.organizationIds = [...organizationIds]
+  }
+
+  if (organizationSlugs.size > 0) {
+    params.organizationSlugs = [...organizationSlugs]
   }
 
   if (plans.size > 0) {

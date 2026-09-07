@@ -71,7 +71,9 @@
     mapId,
     resourceMask,
     renderMasks,
+    // eslint-disable-next-line no-useless-assignment
     transformer = $bindable<GcpTransformer | undefined>(),
+    // eslint-disable-next-line no-useless-assignment
     warpedMapLayerBounds = $bindable<LngLatBoundsLike | undefined>()
   }: Props = $props()
 
@@ -254,4 +256,8 @@
   })
 </script>
 
-<div bind:this={resourceMapContainer} class="h-full w-full"></div>
+<div
+  bind:this={resourceMapContainer}
+  data-tour="editor-resource-map"
+  class="h-full w-full"
+></div>

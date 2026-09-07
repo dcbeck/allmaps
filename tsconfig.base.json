@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "strict": true,
     "skipLibCheck": true,
     "allowJs": true,
@@ -11,7 +10,7 @@
     "composite": true,
     "declaration": true,
     "moduleResolution": "bundler",
-    "ignoreDeprecations": "5.0",
+    "stableTypeOrdering": true,
     "paths": {
       "@allmaps/analyze": ["./packages/analyze/src"],
       "@allmaps/analyze/*": ["./packages/analyze/src/*"],
@@ -25,8 +24,6 @@
       "@allmaps/basemap/*": ["./packages/basemap/src/*"],
       "@allmaps/bearing": ["./packages/bearing/src"],
       "@allmaps/bearing/*": ["./packages/bearing/src/*"],
-      "@allmaps/components": ["./packages/components/src"],
-      "@allmaps/components/*": ["./packages/components/src/*"],
       "@allmaps/db": ["./packages/db/src"],
       "@allmaps/db/*": ["./packages/db/src/*"],
       "@allmaps/env": ["./packages/env/src"],
@@ -35,6 +32,8 @@
       "@allmaps/frame/*": ["./packages/frame/src/*"],
       "@allmaps/id": ["./packages/id/src"],
       "@allmaps/id/*": ["./packages/id/src/*"],
+      "@allmaps/iiif-inspector": ["./packages/iiif-inspector/src"],
+      "@allmaps/iiif-inspector/*": ["./packages/iiif-inspector/src/*"],
       "@allmaps/iiif-parser": ["./packages/iiif-parser/src"],
       "@allmaps/iiif-parser/*": ["./packages/iiif-parser/src/*"],
       "@allmaps/latest": ["./apps/latest/src"],

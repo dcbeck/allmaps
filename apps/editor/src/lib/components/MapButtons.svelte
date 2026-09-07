@@ -8,7 +8,7 @@
   import { getUiState } from '$lib/state/ui.svelte.js'
   import { getVarsState } from '$lib/state/vars.svelte.js'
 
-  import { Popover } from '@allmaps/components'
+  import { Popover } from '@allmaps/ui'
 
   import MapSettings from '$lib/components/popovers/MapSettings.svelte'
   import Geocoder from '$lib/components/popovers/Geocoder.svelte'
@@ -40,9 +40,12 @@
     disabled={!mapSettingsEnabled}
   >
     {#snippet button()}
-      <div class="size-8 rounded-full bg-white p-1.5 shadow-md transition-all">
+      <span
+        data-tour="editor-map-settings"
+        class="inline-flex size-8 items-center justify-center rounded-full bg-white p-1.5 shadow-md transition-all"
+      >
         <GearSixIcon size="100%" weight="regular" />
-      </div>
+      </span>
     {/snippet}
 
     {#snippet contents()}<MapSettings />{/snippet}

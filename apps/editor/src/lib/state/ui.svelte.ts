@@ -3,7 +3,7 @@ import { browser } from '$app/environment'
 
 import { UiEvents, UiEventTarget } from '$lib/shared/ui-events.js'
 
-import type { PickerProjection } from '@allmaps/components/projections'
+import type { PickerProjection } from '@allmaps/ui/projections'
 
 import type { Bbox, Point } from '@allmaps/types'
 
@@ -20,6 +20,7 @@ import type { SourceState } from '$lib/state/source.svelte.js'
 import type { searchParams } from '$lib/shared/params'
 
 const UI_KEY = Symbol('ui')
+const FIRST_USE_KEY = `${String(UI_KEY)}-first-use`
 
 type Modal =
   | 'command'
@@ -194,17 +195,8 @@ export class UiState extends UiEventTarget {
     })
 
     if (browser) {
-      // TODO: move localStorage code to shared ts file
-      const firstUseKey = `${String(UI_KEY)}-first-use`
-
       try {
-        const firstUse = localStorage.getItem(firstUseKey)
-
-        if (firstUse) {
-          this.#firstUse = false
-        }
-
-        localStorage.setItem(firstUseKey, String(false))
+        this.#firstUse = localStorage.getItem(FIRST_USE_KEY) !== 'false'
       } catch {
         console.warn('Error reading from localStorage')
       }
@@ -233,6 +225,10 @@ export class UiState extends UiEventTarget {
 
   dispatchToggleRenderMasks() {
     this.dispatchEvent(new CustomEvent(UiEvents.TOGGLE_RENDER_MASKS))
+  }
+
+  dispatchStartTour() {
+    this.dispatchEvent(new CustomEvent(UiEvents.START_TOUR))
   }
 
   dispatchFitBbox(bbox: Bbox) {
@@ -293,6 +289,18 @@ export class UiState extends UiEventTarget {
 
   get firstUse() {
     return this.#firstUse
+  }
+
+  completeFirstUse() {
+    this.#firstUse = false
+
+    if (browser) {
+      try {
+        localStorage.setItem(FIRST_USE_KEY, 'false')
+      } catch {
+        console.warn('Error writing to localStorage')
+      }
+    }
   }
 
   #getModalOpen(modal: Modal) {
@@ -381,7 +389,6 @@ export class UiState extends UiEventTarget {
   set resultsOptions(options: Partial<ResultsOptions>) {
     this.#resultsOptions = { ...this.#resultsOptions, ...options }
   }
-
 }
 
 export function setUiState(

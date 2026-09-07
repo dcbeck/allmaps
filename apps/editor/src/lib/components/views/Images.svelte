@@ -2,7 +2,7 @@
   import { page } from '$app/state'
   import { afterNavigate } from '$app/navigation'
 
-  import { Grid, Thumbnail } from '@allmaps/components'
+  import { Grid, Thumbnail } from '@allmaps/ui'
   import { Image as IIIFImage } from '@allmaps/iiif-parser'
   import { darkblue } from '@allmaps/tailwind'
 
@@ -11,8 +11,9 @@
   import Pagination from '$lib/components/Pagination.svelte'
 
   import { gotoRoute, getViewUrl } from '$lib/shared/router.js'
-  import { parseLanguageString } from '$lib/shared/iiif.js'
+  import { parseLocalizedLanguageString } from '$lib/shared/iiif.js'
   import { truncate } from '$lib/shared/strings.js'
+  import { m } from '$lib/paraglide/messages.js'
 
   import { getSourceState } from '$lib/state/source.svelte.js'
   import { getImageInfoState } from '$lib/state/image-info.svelte.js'
@@ -37,7 +38,7 @@
 
   let breadcrumbs = $derived(
     sourceState.breadcrumbs.map(({ label, path, type, id }, index) => ({
-      label: label || `Level ${index + 1}`,
+      label: label || m.level_number({ number: index + 1 }),
       href: paramsToUrl({
         path,
         manifestId: type === 'manifest' ? id : undefined,
@@ -104,7 +105,10 @@
   afterNavigate(() => (beforeTimeoutActiveImageId = undefined))
 </script>
 
-<div class="m-auto flex max-w-(--breakpoint-lg) flex-col gap-4 p-4">
+<div
+  data-tour="editor-images-view"
+  class="m-auto flex max-w-(--breakpoint-lg) flex-col gap-4 p-4"
+>
   {#if sourceState.parsedIiif && sourceState.parsedIiif.type === 'collection'}
     <Collection
       parsedIiifAtPath={sourceState.parsedIiifAtPath}
@@ -138,7 +142,7 @@
                 <div
                   class="flex aspect-square animate-pulse items-center justify-center bg-white/30 p-2 text-center text-sm text-gray-800"
                 >
-                  <p>Loading…</p>
+                  <p>{m.loading_ellipsis()}</p>
                 </div>
               {:then imageInfo}
                 <Thumbnail
@@ -148,14 +152,14 @@
                   borderColor={sourceState.imageCount > 1 && isActive(image.uri)
                     ? darkblue
                     : undefined}
-                  alt={parseLanguageString(canvas?.label, 'en')}
+                  alt={parseLocalizedLanguageString(canvas?.label)}
                 />
               {:catch error}
                 <div>
                   <p
                     class="flex aspect-square items-center justify-center bg-white/30 p-2 text-center text-sm text-gray-800"
                   >
-                    Error: {error.message}
+                    {m.error_with_message({ message: error.message })}
                   </p>
                 </div>
               {/await}
@@ -165,13 +169,14 @@
             </div>
             <div class="text-center text-sm text-blue-900">
               {canvas?.label
-                ? truncate(parseLanguageString(canvas?.label, 'en'))
-                : `Image ${index + 1}`}
+                ? truncate(parseLocalizedLanguageString(canvas?.label))
+                : m.image_number({ number: index + 1 })}
             </div>
             {#if canvas?.width && canvas?.height}
               <div class="text-center text-xs text-blue-800">
                 {canvas?.width} ×
-                {canvas?.height} pixels
+                {canvas?.height}
+                {m.pixels()}
               </div>
             {/if}
           </a>

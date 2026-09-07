@@ -3,7 +3,7 @@
   import { page } from '$app/state'
   import { goto } from '$app/navigation'
 
-  import { Footer } from '@allmaps/components'
+  import { Footer } from '@allmaps/ui'
 
   import { getUrlState } from '$lib/shared/params.js'
 
@@ -18,7 +18,7 @@
   import Organizations from '$lib/components/Organizations.svelte'
   import TermsOfUse from '$lib/components/TermsOfUse.svelte'
 
-  import { organizationsWithCollectionsOnHomepage } from '$lib/shared/organizations.js'
+  import { m } from '$lib/paraglide/messages.js'
 
   const urlState = getUrlState()
 
@@ -66,11 +66,7 @@
       <Title />
 
       <p class="text-center text-black">
-        Find a map from a IIIF-enabled map collection, copy its IIIF URL and
-        paste it below to start georeferencing. You can view georeferenced maps
-        in <a href="https://viewer.allmaps.org" class="underline"
-          >Allmaps Viewer</a
-        > or use them in tools like MapLibre, OpenLayers, Leaflet or QGIS.
+        {m.homepage_intro()}
       </p>
       <URLInput onSubmit={handleInputSubmit} />
       <!-- TODO: enable when homepage is updated! -->
@@ -87,13 +83,13 @@
     </div>
   </section>
   <section class="flex w-full flex-col items-center bg-[#f2feff] pb-16">
-    <div class="flex max-w-(--breakpoint-lg) flex-col items-center p-2">
+    <div class="flex w-full max-w-(--breakpoint-lg) flex-col items-center p-2">
       <div class="flex flex-col items-center space-y-4 p-8 text-center">
         <h2 class="text-2xl font-bold text-black">
-          Or pick a map from these collections
+          {m.homepage_pick_collection()}
         </h2>
       </div>
-      <Organizations organizations={organizationsWithCollectionsOnHomepage} />
+      <Organizations />
     </div>
   </section>
 </div>

@@ -1,4 +1,8 @@
-import { Map as MaplibreMap, CustomLayerInterface } from 'maplibre-gl'
+import {
+  Map as MaplibreMap,
+  Event as MaplibreEvent,
+  CustomLayerInterface
+} from 'maplibre-gl'
 
 import { WebGL2Renderer } from '@allmaps/render/webgl2'
 import { MaskOptions, Viewport, WarpedMapEvent } from '@allmaps/render'
@@ -23,7 +27,9 @@ import { computeWarpedMapBearing } from '@allmaps/bearing'
 import type {
   CameraForBoundsOptions,
   CenterZoomBearing,
-  LngLatBoundsLike
+  Evented,
+  LngLatBoundsLike,
+  MapContextEvent
 } from 'maplibre-gl'
 
 import type { Rectangle, Point, Fit, Size } from '@allmaps/types'
@@ -40,7 +46,8 @@ export type SpecificMapLibreWarpedMapLayerOptions = {
 }
 
 export type CenterZoomBearingOptions = Partial<MaskOptions> & {
-  bearingSelection: 'first' | 'angularMean'
+  bearingMapIds?: string[]
+  bearingCallbackFn: (bearing: number) => number
   fit: Fit
 }
 
@@ -54,7 +61,7 @@ const DEFFAULT_SPECIFIC_MAPLIBRE_WARPED_MAP_LAYER_OPTIONS: SpecificMapLibreWarpe
     layerRenderingMode: '2d'
   }
 const DEFAULT_BEARING_OPTIONS: CenterZoomBearingOptions = {
-  bearingSelection: 'first',
+  bearingCallbackFn: (bearing) => bearing,
   fit: 'contain'
 }
 
@@ -74,10 +81,17 @@ export class WarpedMapLayer
 
   map?: MaplibreMap
 
+  private onContextLost = (event: MapContextEvent) => {
+    this.contextLost(event.originalEvent)
+  }
+
+  private onContextRestored = (event: MapContextEvent) => {
+    this.contextRestored(event.originalEvent)
+  }
+
   /**
    * Creates a WarpedMapLayer instance
    *
-   * @param id - Unique ID for this layer
    * @param options - options
    */
   constructor(options?: Partial<MapLibreWarpedMapLayerOptions>) {
@@ -101,8 +115,8 @@ export class WarpedMapLayer
 
     this.addEventListeners()
 
-    this.map.on('webglcontextlost', this.contextLost.bind(this))
-    this.map.on('webglcontextrestored', this.contextRestored.bind(this))
+    this.map.on('webglcontextlost', this.onContextLost)
+    this.map.on('webglcontextrestored', this.onContextRestored)
   }
 
   /**
@@ -115,8 +129,8 @@ export class WarpedMapLayer
 
     this.removeEventListeners()
 
-    this.map?.off('webglcontextlost', this.contextLost.bind(this))
-    this.map?.off('webglcontextrestored', this.contextRestored.bind(this))
+    this.map?.off('webglcontextlost', this.onContextLost)
+    this.map?.off('webglcontextrestored', this.onContextRestored)
 
     this.renderer.destroy()
   }
@@ -203,7 +217,7 @@ export class WarpedMapLayer
    */
   getMapsCenterZoomBearing(
     mapIds: string[],
-    options?: Partial<CenterZoomBearingOptions & CameraForBoundsOptions>
+    partialOptions?: Partial<CenterZoomBearingOptions & CameraForBoundsOptions>
   ): CenterZoomBearing {
     // When MapLibre is asked to fit to a bbox while the map is rotated,
     // it will compute a CenterZoomBearing, that fits the entire bbox
@@ -219,7 +233,7 @@ export class WarpedMapLayer
 
     BaseWarpedMapLayer.assertRenderer(this.renderer)
 
-    options = mergeOptions(DEFAULT_BEARING_OPTIONS, options)
+    const options = mergeOptions(DEFAULT_BEARING_OPTIONS, partialOptions)
 
     // Get warped maps
     const warpedMaps = this.getWarpedMaps(mapIds)
@@ -229,19 +243,28 @@ export class WarpedMapLayer
 
     // Compute bearing
     let bearing
-    if (options.bearingSelection == 'first') {
+    const bearingMapIds = options.bearingMapIds
+    if (bearingMapIds === undefined) {
       bearing = computeWarpedMapBearing(warpedMaps[0], options)
-    } else if (options.bearingSelection == 'angularMean') {
+    } else {
+      const bearingWarpedMaps = warpedMaps.filter((warpedMap) =>
+        bearingMapIds.includes(warpedMap.mapId)
+      )
+      if (bearingWarpedMaps.length === 0) {
+        throw new Error(
+          "Map IDs for bearing don't overlap with selected map IDs."
+        )
+      }
       bearing = radiansToDegrees(
         angularMean(
-          ...warpedMaps.map((warpedMap) =>
+          ...bearingWarpedMaps.map((warpedMap) =>
             degreesToRadians(computeWarpedMapBearing(warpedMap, options))
           )
         )
       )
-    } else {
-      throw new Error('Unknown bearing selection method')
     }
+
+    bearing = options.bearingCallbackFn(bearing)
 
     // Rotate projectedGeoMasks in the opposite direction and get center and bbox
     //
@@ -265,10 +288,7 @@ export class WarpedMapLayer
     // Scale bbox based on fit with viewport bbox
     if (options.fit) {
       const canvas = map.getCanvas()
-      const viewportSize = [
-        canvas.width / window.devicePixelRatio,
-        canvas.height / window.devicePixelRatio
-      ] as Size
+      const viewportSize = [canvas.offsetWidth, canvas.offsetHeight] as Size
 
       const adjustmentScale =
         sizesToScale(bboxToSize(projectedGeoBbox), viewportSize, options.fit) /
@@ -307,11 +327,14 @@ export class WarpedMapLayer
 
     // Getting the viewportSize should also be possible through getting the bounds
     // And using project() to go to resource coordintas
+    //
+    // Note that we use canvas.offsetWidth and canvas.offsetHeight here
+    // instead of canvas.width / window.devicePixelRatio and canvas.height / window.devicePixelRatio
+    // because MapLibre's canvasSize as [canvas.width, canvas.height] is capped at 4096
+    // (see https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/#maxcanvassize)
+    // which gives issues for canvas sizes > 4096 (e.g. on 5K screens)
     const canvas = this.map.getCanvas()
-    const viewportSize = [
-      canvas.width / window.devicePixelRatio,
-      canvas.height / window.devicePixelRatio
-    ] as Size
+    const viewportSize = [canvas.offsetWidth, canvas.offsetHeight] as Size
 
     const geoCenterAsLngLat = this.map.getCenter()
     const projectedGeoCenter = lonLatToWebMercator([
@@ -388,11 +411,15 @@ export class WarpedMapLayer
   nativePassWarpedMapEvent(event: Event) {
     if (event instanceof WarpedMapEvent) {
       if (this.map) {
-        this.map.fire(event.type, {
-          ...event.data,
-          error: event.error,
-          layerId: this.id
-        })
+        // Allmaps events extend the built-in MapLibre map event names.
+        const eventedMap = this.map as Evented
+        eventedMap.fire(
+          new MaplibreEvent(event.type, {
+            ...event.data,
+            error: event.error,
+            layerId: this.id
+          })
+        )
       }
     }
   }

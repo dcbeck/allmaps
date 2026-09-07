@@ -10,7 +10,7 @@
   import { pink } from '@allmaps/tailwind'
   import { computeBbox, combineBboxes } from '@allmaps/stdlib'
 
-  import { getProjectionsState } from '@allmaps/components/state'
+  import { getProjectionsState } from '@allmaps/ui/state'
 
   import { getSourceState } from '$lib/state/source.svelte.js'
   import { getMapsState } from '$lib/state/maps.svelte.js'
@@ -197,7 +197,6 @@
     let stateGeoViewport: Viewport | undefined
     let navPlaceGeoViewport: Viewport | undefined
     let urlGeoViewport: Viewport | undefined
-    let dataGeoViewport: Viewport | undefined
 
     if (geoMap) {
       navPlaceGeoViewport = getNavPlaceViewport(sourceState.navPlace)
@@ -224,8 +223,7 @@
     const geoViewports = sortGeoViewports({
       state: stateGeoViewport,
       navPlace: navPlaceGeoViewport,
-      url: urlGeoViewport,
-      data: dataGeoViewport
+      url: urlGeoViewport
     })
 
     return geoViewports[0]
@@ -1169,6 +1167,7 @@
 </script>
 
 <div
+  data-tour="editor-georeference-view"
   class="grid h-full w-full grid-rows-2 gap-0.5 sm:grid-cols-2 sm:grid-rows-1"
 >
   <Resource

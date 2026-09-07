@@ -14,6 +14,7 @@ import {
   queryMaps
 } from '@allmaps/api-shared/db'
 import {
+  clampLimit,
   needsElevatedLimitRole,
   normalizeMapsQueryParams,
   queryRandom,
@@ -21,7 +22,6 @@ import {
 } from '@allmaps/api-shared'
 
 const mapsQuerySchema = t.Object({
-  limit: t.Optional(t.Number()),
   imageServiceDomain: t.Optional(t.String()),
   manifestDomain: t.Optional(t.String()),
   intersects: t.Optional(t.Array(t.Number())),
@@ -87,19 +87,26 @@ export function createManifestsRoutes(
           ? await getLimitRole()
           : 'public'
         setCacheControl(set, 'private-no-store')
-        return queryRandom((op, randomId) =>
-          queryManifests(
-            env.PUBLIC_REST_BASE_URL,
-            db,
-            {
-              georeferenced: query.georeferenced,
-              limit: query.limit,
-              randomManifestId: randomId,
-              randomManifestIdOp: op,
-              userRole
-            },
-            { expectRows: true, singular: false }
-          )
+        const limit = clampLimit(query.limit ?? 100, userRole)
+        return queryRandom(
+          limit,
+          async (op, randomId, queryLimit) => {
+            const manifests = await queryManifests(
+              env.PUBLIC_REST_BASE_URL,
+              db,
+              {
+                georeferenced: query.georeferenced,
+                limit: queryLimit,
+                randomManifestId: randomId,
+                randomManifestIdOp: op,
+                userRole
+              },
+              { expectRows: false, singular: false }
+            )
+
+            return Array.isArray(manifests) ? manifests : [manifests]
+          },
+          'Manifests not found'
         )
       },
       {
@@ -129,24 +136,22 @@ export function createManifestsRoutes(
     )
     .get(
       '/manifests/:manifestId/maps',
-      async ({ request, env, db, params, set, getLimitRole }) => {
+      ({ request, env, db, params, set }) => {
         const queryParams = normalizeMapsQueryParams(request)
-        const userRole = needsElevatedLimitRole(queryParams.limit)
-          ? await getLimitRole()
-          : 'public'
-        setCacheControl(
-          set,
-          userRole === 'public' ? 'public-short' : 'private-no-store'
-        )
+        setCacheControl(set, 'public-medium')
         return queryMaps(
           env.PUBLIC_ANNOTATIONS_BASE_URL,
           db,
           {
             ...queryParams,
-            manifestId: params.manifestId,
-            userRole
+            manifestId: params.manifestId
           },
-          { format: 'map', expectRows: true, singular: false }
+          {
+            format: 'map',
+            expectRows: true,
+            singular: false,
+            resultScope: 'complete'
+          }
         )
       },
       {
@@ -160,24 +165,22 @@ export function createManifestsRoutes(
     )
     .get(
       '/manifests/:manifestId/maps.geojson',
-      async ({ request, env, db, params, set, getLimitRole }) => {
+      ({ request, env, db, params, set }) => {
         const queryParams = normalizeMapsQueryParams(request)
-        const userRole = needsElevatedLimitRole(queryParams.limit)
-          ? await getLimitRole()
-          : 'public'
-        setCacheControl(
-          set,
-          userRole === 'public' ? 'public-short' : 'private-no-store'
-        )
+        setCacheControl(set, 'public-medium')
         return queryMaps(
           env.PUBLIC_ANNOTATIONS_BASE_URL,
           db,
           {
             ...queryParams,
-            manifestId: params.manifestId,
-            userRole
+            manifestId: params.manifestId
           },
-          { format: 'geojson', expectRows: true, singular: false }
+          {
+            format: 'geojson',
+            expectRows: true,
+            singular: false,
+            resultScope: 'complete'
+          }
         )
       },
       {

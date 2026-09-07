@@ -55,19 +55,22 @@
     "@commander-js/extra-typings": "^13.0.0",
     "commander": "^13.0.0",
     "open": "^10.1.2",
-    "stream-json": "^1.9.1"
+    "stream-json": "catalog:"
   },
   "devDependencies": {
-    "@types/eslint": "^8.56.0",
     "@types/node": "catalog:",
-    "@types/stream-json": "^1.7.2",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "eslint": "^8.56.0",
-    "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.6.2",
+    "@types/stream-json": "catalog:",
+    "prettier": "catalog:",
+    "globals": "catalog:",
+    "@typescript/native": "catalog:",
     "typescript": "catalog:",
-    "vitest": "^4.0.4",
-    "zod": "catalog:"
+    "typescript-eslint": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "zod": "catalog:",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "eslint-plugin-svelte": "catalog:",
+    "@eslint/js": "catalog:"
   }
 }

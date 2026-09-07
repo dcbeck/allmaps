@@ -1,9 +1,9 @@
 <script lang="ts">
   import { page } from '$app/state'
 
-  import { Banner, Loading } from '@allmaps/components'
+  import { Banner, Loading } from '@allmaps/ui'
 
-  import { setProjectionsState } from '@allmaps/components/state'
+  import { setProjectionsState } from '@allmaps/ui/state'
 
   import { getErrorState } from '$lib/state/error.svelte.js'
   import { getUrlState } from '$lib/shared/params.js'
@@ -24,6 +24,8 @@
   import Head from '$lib/components/Head.svelte'
   import Header from '$lib/components/Header.svelte'
   import Controls from '$lib/components/Controls.svelte'
+  import EditorMapGuideController from '$lib/components/EditorMapGuideController.svelte'
+  import EditorTour from '$lib/components/EditorTour.svelte'
 
   import About from '$lib/components/modals/About.svelte'
   import Annotation from '$lib/components/modals/Annotation.svelte'
@@ -223,6 +225,8 @@
       <div class="pointer-events-none z-10 col-span-full row-span-full min-h-0">
         <Controls />
       </div>
+      <EditorMapGuideController />
+      <EditorTour />
     {/if}
   </div>
 </div>

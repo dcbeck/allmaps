@@ -7,6 +7,7 @@ import type { RestEnv } from '@allmaps/env/rest'
 import { createElysia, createBetterAuthPlugin } from '../elysia.js'
 import { queryCanvases, queryMaps } from '@allmaps/api-shared/db'
 import {
+  clampLimit,
   needsElevatedLimitRole,
   normalizeMapsQueryParams,
   queryRandom,
@@ -19,7 +20,6 @@ const canvasesQuerySchema = t.Object({
 })
 
 const mapsQuerySchema = t.Object({
-  limit: t.Optional(t.Number()),
   imageServiceDomain: t.Optional(t.String()),
   manifestDomain: t.Optional(t.String()),
   intersects: t.Optional(t.Array(t.Number())),
@@ -67,19 +67,26 @@ export function createCanvasesRoutes(
           ? await getLimitRole()
           : 'public'
         setCacheControl(set, 'private-no-store')
-        return queryRandom((op, randomId) =>
-          queryCanvases(
-            env.PUBLIC_REST_BASE_URL,
-            db,
-            {
-              georeferenced: query.georeferenced,
-              limit: query.limit,
-              randomCanvasId: randomId,
-              randomCanvasIdOp: op,
-              userRole
-            },
-            { expectRows: true, singular: false }
-          )
+        const limit = clampLimit(query.limit ?? 100, userRole)
+        return queryRandom(
+          limit,
+          async (op, randomId, queryLimit) => {
+            const canvases = await queryCanvases(
+              env.PUBLIC_REST_BASE_URL,
+              db,
+              {
+                georeferenced: query.georeferenced,
+                limit: queryLimit,
+                randomCanvasId: randomId,
+                randomCanvasIdOp: op,
+                userRole
+              },
+              { expectRows: false, singular: false }
+            )
+
+            return Array.isArray(canvases) ? canvases : [canvases]
+          },
+          'Canvases not found'
         )
       },
       {
@@ -106,24 +113,22 @@ export function createCanvasesRoutes(
     )
     .get(
       '/canvases/:canvasId/maps',
-      async ({ request, env, db, params, set, getLimitRole }) => {
+      ({ request, env, db, params, set }) => {
         const queryParams = normalizeMapsQueryParams(request)
-        const userRole = needsElevatedLimitRole(queryParams.limit)
-          ? await getLimitRole()
-          : 'public'
-        setCacheControl(
-          set,
-          userRole === 'public' ? 'public-short' : 'private-no-store'
-        )
+        setCacheControl(set, 'public-medium')
         return queryMaps(
           env.PUBLIC_ANNOTATIONS_BASE_URL,
           db,
           {
             ...queryParams,
-            canvasId: params.canvasId,
-            userRole
+            canvasId: params.canvasId
           },
-          { format: 'map', expectRows: true, singular: false }
+          {
+            format: 'map',
+            expectRows: true,
+            singular: false,
+            resultScope: 'complete'
+          }
         )
       },
       {
@@ -137,24 +142,22 @@ export function createCanvasesRoutes(
     )
     .get(
       '/canvases/:canvasId/maps.geojson',
-      async ({ request, env, db, params, set, getLimitRole }) => {
+      ({ request, env, db, params, set }) => {
         const queryParams = normalizeMapsQueryParams(request)
-        const userRole = needsElevatedLimitRole(queryParams.limit)
-          ? await getLimitRole()
-          : 'public'
-        setCacheControl(
-          set,
-          userRole === 'public' ? 'public-short' : 'private-no-store'
-        )
+        setCacheControl(set, 'public-medium')
         return queryMaps(
           env.PUBLIC_ANNOTATIONS_BASE_URL,
           db,
           {
             ...queryParams,
-            canvasId: params.canvasId,
-            userRole
+            canvasId: params.canvasId
           },
-          { format: 'geojson', expectRows: true, singular: false }
+          {
+            format: 'geojson',
+            expectRows: true,
+            singular: false,
+            resultScope: 'complete'
+          }
         )
       },
       {

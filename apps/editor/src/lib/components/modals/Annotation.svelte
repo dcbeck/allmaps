@@ -2,11 +2,12 @@
   import { getScopeState } from '$lib/state/scope.svelte.js'
   import { getUiState } from '$lib/state/ui.svelte.js'
 
-  import { Modal } from '@allmaps/components'
+  import { Modal } from '@allmaps/ui'
 
   import StartGeoreferencing from '$lib/components/StartGeoreferencing.svelte'
   import Highlight from '$lib/components/Highlight.svelte'
   import Scope from '$lib/components/Scope.svelte'
+  import { m } from '$lib/paraglide/messages.js'
 
   const scopeState = getScopeState()
   const uiState = getUiState()
@@ -19,7 +20,7 @@
   {#snippet title()}
     <div class="flex flex-col items-center gap-2 sm:flex-row">
       <span class="shrink-0 text-sm md:text-base"
-        >Georeference Annotation for
+        >{m.georeference_annotation_for()}
       </span>
       <div class="w-48 text-base font-normal">
         <!-- Somehow, selectPortal is set to null when the modal closes,

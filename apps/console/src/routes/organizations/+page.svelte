@@ -1,11 +1,21 @@
 <script lang="ts">
   import { replaceState } from '$app/navigation'
   import { page } from '$app/state'
-  import { GpsFix as GpsFixIcon } from 'phosphor-svelte'
+  import { Tooltip } from 'bits-ui'
+  import {
+    GpsFix as GpsFixIcon,
+    Image as ImageIcon,
+    Stack as StackIcon
+  } from 'phosphor-svelte'
 
   import SearchFilter from '$lib/components/SearchFilter.svelte'
   import DataTable from '$lib/components/DataTable.svelte'
+  import StatusIconTooltip from '$lib/components/StatusIconTooltip.svelte'
   import { getOrganizationId, getUserId } from '$lib/organizations.js'
+  import {
+    organizationPlanDetails,
+    organizationPlanOrder
+  } from '$lib/organization-plans.js'
   import { routes } from '$lib/routes.js'
   import {
     getSearchField,
@@ -23,8 +33,7 @@
   const organizationSearchFields = ['name', 'slug', 'domain'] as const
   const organizationSortFields = ['name', 'slug', 'plan', 'createdAt'] as const
   type OrganizationSearchField =
-    | 'all'
-    | (typeof organizationSearchFields)[number]
+    'all' | (typeof organizationSearchFields)[number]
   type OrganizationSortField = (typeof organizationSortFields)[number]
 
   let searchValue = $state(page.url.searchParams.get('q') ?? '')
@@ -32,8 +41,6 @@
 
   let sortBy = $state(getSortField(page.url, organizationSortFields, 'plan'))
   let sortDir = $state(getSortDirection(page.url, 'desc'))
-
-  const planOrder: Record<string, number> = { supporter: 1, innovator: 2 }
 
   function replaceTableState({
     nextSearchValue = searchValue,
@@ -54,6 +61,7 @@
     })
 
     if (path !== `${page.url.pathname}${page.url.search}`) {
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- table state paths are constructed from the active route
       replaceState(path, page.state)
     }
   }
@@ -76,9 +84,7 @@
 
   function search(value: string, field: string) {
     const nextSearchField =
-      field === 'name' || field === 'slug' || field === 'domain'
-        ? field
-        : 'all'
+      field === 'name' || field === 'slug' || field === 'domain' ? field : 'all'
 
     searchValue = value
     searchField = nextSearchField
@@ -132,8 +138,8 @@
         av = new Date(a.createdAt).getTime()
         bv = new Date(b.createdAt).getTime()
       } else if (sortBy === 'plan') {
-        av = planOrder[a.plan ?? ''] ?? 0
-        bv = planOrder[b.plan ?? ''] ?? 0
+        av = a.plan ? organizationPlanOrder[a.plan] : 0
+        bv = b.plan ? organizationPlanOrder[b.plan] : 0
       } else {
         av = a[sortBy] ?? ''
         bv = b[sortBy] ?? ''
@@ -276,29 +282,60 @@
                   >
                     {organization.name}
                   </a>
-                  {#if organization.location}
-                    <span title="Has location" class="text-blue-500">
-                      <GpsFixIcon
-                        size="14"
-                        weight="bold"
-                        aria-label="Has location"
-                      />
-                    </span>
-                  {/if}
+                  <Tooltip.Provider delayDuration={200}>
+                    <div class="flex items-center gap-1">
+                      {#if organization.location}
+                        <StatusIconTooltip
+                          label={`Location: ${organization.location.coordinates[1]}, ${organization.location.coordinates[0]}`}
+                        >
+                          <GpsFixIcon
+                            size="14"
+                            weight="bold"
+                            class="text-blue-500"
+                            aria-hidden="true"
+                          />
+                        </StatusIconTooltip>
+                      {/if}
+                      {#if organization.displayCollections}
+                        <StatusIconTooltip
+                          label="Collections are visible in public discovery"
+                        >
+                          <StackIcon
+                            size="14"
+                            weight="bold"
+                            class="text-green-600"
+                            aria-hidden="true"
+                          />
+                        </StatusIconTooltip>
+                      {/if}
+                      {#if organization.logo}
+                        <StatusIconTooltip
+                          label={`Logo URL: ${organization.logo}`}
+                          imageUrl={organization.logo}
+                          imageAlt={`${organization.name} logo`}
+                          showLabel={false}
+                        >
+                          <ImageIcon
+                            size="14"
+                            weight="bold"
+                            class="text-purple-500"
+                            aria-hidden="true"
+                          />
+                        </StatusIconTooltip>
+                      {/if}
+                    </div>
+                  </Tooltip.Provider>
                 </div>
               </td>
               <td class="px-3 py-2 @lg:px-4 @lg:py-3 whitespace-nowrap">
-                {#if organization.plan === 'supporter'}
+                {#if organization.plan}
+                  {@const planDetails =
+                    organizationPlanDetails[organization.plan]}
                   <span
-                    class="rounded px-2 py-0.5 font-sans text-xs font-medium bg-green-100 text-green-700"
+                    class="rounded px-2 py-0.5 font-sans text-xs font-medium {planDetails.class}"
                   >
-                    🌱 Supporter
-                  </span>
-                {:else if organization.plan === 'innovator'}
-                  <span
-                    class="rounded px-2 py-0.5 font-sans text-xs font-medium bg-purple-100 text-purple-700"
-                  >
-                    🚀 Innovator
+                    {planDetails.icon}
+                    {planDetails.label}
                   </span>
                 {:else}
                   <span class="font-sans text-xs text-gray-300">—</span>

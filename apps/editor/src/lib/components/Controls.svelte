@@ -13,18 +13,21 @@
     // CaretDown as CaretDownIcon
   } from 'phosphor-svelte'
 
-  import { Popover } from '@allmaps/components'
+  import { Popover } from '@allmaps/ui'
 
   import { getUiState } from '$lib/state/ui.svelte.js'
   import { getSourceState } from '$lib/state/source.svelte.js'
   import { getMapsState } from '$lib/state/maps.svelte.js'
   import { getMapsMergedState } from '$lib/state/maps-merged.svelte.js'
+  import { getMapGuideState } from '$lib/state/map-guide.svelte.js'
   import { getScopeState } from '$lib/state/scope.svelte.js'
   import { getUrlState } from '$lib/shared/params.js'
+  import { m } from '$lib/paraglide/messages.js'
 
   import { getView, getViewUrl } from '$lib/shared/router.js'
 
   import MapButtons from '$lib/components/MapButtons.svelte'
+  import MapGuide from '$lib/components/MapGuide.svelte'
   import ImageSelector from '$lib/components/ImageSelector.svelte'
   import MapSelector from '$lib/components/MapSelector.svelte'
   import Maps from '$lib/components/popovers/Maps.svelte'
@@ -34,8 +37,11 @@
   const sourceState = getSourceState()
   const mapsState = getMapsState()
   const mapsMergedState = getMapsMergedState()
+  const mapGuideState = getMapGuideState()
   const scopeState = getScopeState()
   const urlState = getUrlState()
+
+  let smallScreenPopoverContainer = $state<HTMLDivElement>()
 
   // let imagesViewButton: HTMLAnchorElement
   // let maskViewButton: HTMLAnchorElement
@@ -44,6 +50,10 @@
 
   let resultsEnabled = $derived(
     mapsMergedState.completeMaps.length > 0 || mapsState.activeMap !== undefined
+  )
+
+  let resourceLoaded = $derived(
+    Boolean(sourceState.source && !sourceState.fetching)
   )
 
   let editEnabled = $derived(sourceState.canEdit)
@@ -76,9 +86,11 @@
   >
     <div></div>
     <nav
+      data-tour="editor-workflow"
       class="grid grid-cols-[1fr_min-content_1fr_min-content_1fr_min-content_1fr] gap-0.5 rounded-lg bg-white p-1 font-semibold shadow-md sm:gap-1"
     >
       <a
+        data-tour="editor-images"
         href={urlState.generateUrl(getViewUrl('images'), {
           imageId: sourceState.activeImageId || undefined
         })}
@@ -86,10 +98,11 @@
         class="flex items-center justify-center gap-2 rounded-md bg-white px-2 py-1 transition-colors duration-200 hover:bg-blue/10 data-[state=active]:bg-blue/25 sm:px-4 sm:py-2"
       >
         <ImagesIcon size={28} class="inline" />
-        <span class="hidden lg:inline-block">Images</span>
+        <span class="hidden lg:inline-block">{m.images()}</span>
       </a>
       {@render separator()}
       <a
+        data-tour="editor-mask"
         href={editEnabled
           ? urlState.generateUrl(getViewUrl('mask'), {
               imageId: sourceState.activeImageId || undefined
@@ -107,10 +120,11 @@
         ]}
       >
         <PolygonIcon size={28} class="inline" />
-        <span class="hidden lg:inline-block">Draw mask</span>
+        <span class="hidden lg:inline-block">{m.draw_mask()}</span>
       </a>
       {@render separator()}
       <a
+        data-tour="editor-georeference"
         href={editEnabled
           ? urlState.generateUrl(getViewUrl('georeference'), {
               imageId: sourceState.activeImageId || undefined
@@ -128,7 +142,7 @@
         ]}
       >
         <MapPinSimpleIcon size={28} class="inline" />
-        <span class="hidden lg:inline-block">Georeference</span>
+        <span class="hidden lg:inline-block">{m.georeference()}</span>
 
         <!-- <Popover customAnchor={georeferenceViewButton}>
           {#snippet button()}
@@ -141,6 +155,7 @@
       </a>
       {@render separator()}
       <a
+        data-tour="editor-results"
         href={resultsEnabled
           ? urlState.generateUrl(getViewUrl('results'), {
               imageId: sourceState.activeImageId || undefined
@@ -158,7 +173,7 @@
         ]}
       >
         <MapTrifoldIcon size={28} class="inline" />
-        <span class="hidden lg:inline-block">Results</span>
+        <span class="hidden lg:inline-block">{m.results()}</span>
         <!-- <CaretDownIcon size={16} weight="bold" /> -->
       </a>
     </nav>
@@ -174,27 +189,42 @@
     </div>
   </div>
 
+  <div
+    bind:this={smallScreenPopoverContainer}
+    class="pointer-events-none flex min-h-0 w-full flex-1 items-end"
+  ></div>
+
   <!-- class="w-full h-full shrink min-h-0 flex gap-2 items-end justify-between *:relative *:z-10 *:pointer-events-auto" -->
   <div
-    class="pointer-events-none grid w-full grid-cols-[1fr_max-content_1fr] items-center
+    class="pointer-events-none w-full flex justify-between lg:grid lg:grid-cols-[1fr_max-content_1fr] items-end
       gap-2 *:pointer-events-auto"
   >
-    <div></div>
-    <div>
+    <div class="min-w-0 shrink-0">
+      {#if resourceLoaded}
+        <MapGuide state={mapGuideState} {smallScreenPopoverContainer} />
+      {/if}
+    </div>
+    <div
+      class={isResultsView && resultsEnabled
+        ? 'min-w-18 basis-50 md:basis-64 lg:basis-auto'
+        : undefined}
+    >
       {#if isResultsView && resultsEnabled}
         <div
           class="z-50 flex items-center
             gap-2 rounded-lg bg-white p-1 shadow-md"
           transition:fade={{ duration: 100 }}
         >
-          <span class="hidden pl-1 sm:inline-block">Show</span>
-          <div class="w-48">
+          <span class="hidden shrink-0 pl-1 md:inline-block">{m.show()}</span>
+          <div class="min-w-16 w-0 flex-1 lg:w-48">
             <Scope />
           </div>
         </div>
       {/if}
     </div>
-    <div class="flex flex-row items-center justify-center gap-2 place-self-end">
+    <div
+      class="flex shrink-0 flex-row items-center justify-center gap-2 place-self-end"
+    >
       {#if isResultsView && scopeState.mapsCount > 1}
         <MapSelector />
       {:else if sourceState.imageCount > 1}
@@ -207,13 +237,14 @@
         >
           {#snippet button()}
             <div
+              data-tour="editor-maps"
               class="flex flex-row items-center justify-center gap-1 rounded-md
             bg-pink p-2 font-medium text-white shadow-md
             transition-all hover:bg-pink/90"
             >
               <RowsIcon class="size-5" weight="bold" />
               <!-- <span>Masks &amp; GCPs</span> -->
-              <span>Maps</span>
+              <span>{m.maps()}</span>
             </div>
           {/snippet}
           {#snippet contents()}<Maps />{/snippet}

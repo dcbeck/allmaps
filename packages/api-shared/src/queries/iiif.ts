@@ -1,12 +1,14 @@
 import { sql, eq } from 'drizzle-orm'
 
 import { generateId, generateChecksum } from '@allmaps/id'
+import { generateRandomId } from '@allmaps/id/sync'
 import { fetchJson } from '@allmaps/stdlib'
 import { Manifest, Image } from '@allmaps/iiif-parser'
 
 import { schema } from '@allmaps/db/schema'
 
 import { ResponseError, clampLimit } from '@allmaps/api-shared'
+import { parseStoredNullableLanguageString } from '../shared/stored-json.js'
 
 import type { LanguageString } from '@allmaps/iiif-parser'
 import type { Db } from '@allmaps/db'
@@ -127,6 +129,7 @@ function assertAllowedDomain(
 function fromDbManifest(restBaseUrl: string, dbManifest: DbManifest) {
   return {
     ...dbManifest,
+    label: parseStoredNullableLanguageString(dbManifest.label),
     organization: dbManifest.organizationUrl?.organization
       ? {
           id: `${restBaseUrl}/organizations/${dbManifest.organizationUrl.organization.id}`
@@ -162,9 +165,11 @@ function fromDbImage(restBaseUrl: string, dbImage: DbImage) {
     })),
     canvases: dbImage.canvases.map((canvas) => ({
       ...canvas,
+      label: parseStoredNullableLanguageString(canvas.label),
       id: `${restBaseUrl}/canvases/${canvas.id}`,
       manifests: canvas.manifests.map((manifest) => ({
         ...manifest,
+        label: parseStoredNullableLanguageString(manifest.label),
         id: `${restBaseUrl}/manifests/${manifest.id}`
       }))
     })),
@@ -175,6 +180,7 @@ function fromDbImage(restBaseUrl: string, dbImage: DbImage) {
 function fromDbCanvas(restBaseUrl: string, dbCanvas: DbCanvas) {
   return {
     ...dbCanvas,
+    label: parseStoredNullableLanguageString(dbCanvas.label),
     organization: dbCanvas.organizationUrl?.organization
       ? {
           id: `${restBaseUrl}/organizations/${dbCanvas.organizationUrl.organization.id}`
@@ -190,6 +196,7 @@ function fromDbCanvas(restBaseUrl: string, dbCanvas: DbCanvas) {
     })),
     manifests: dbCanvas.manifests.map((manifest) => ({
       ...manifest,
+      label: parseStoredNullableLanguageString(manifest.label),
       id: `${restBaseUrl}/manifests/${manifest.id}`
     })),
     organizationUrl: undefined
@@ -263,6 +270,7 @@ export async function queryImages(
   db: Db,
   params: {
     imageId?: string
+    imageIds?: string[]
     organizationId?: string
     georeferenced?: boolean
     limit?: number
@@ -292,6 +300,7 @@ export async function queryImages(
     where: {
       id: {
         eq: params.imageId,
+        in: params.imageIds,
         ...(params.randomImageIdOp === 'gt'
           ? { gt: params.randomImageId }
           : params.randomImageIdOp === 'lte'
@@ -358,8 +367,7 @@ export async function queryImages(
       }
     },
     orderBy: params.randomImageId
-      ? (images, { asc, desc }) =>
-          params.randomImageIdOp === 'gt' ? asc(images.id) : desc(images.id)
+      ? (images, { asc }) => asc(images.id)
       : undefined,
     limit: responseOptions.singular
       ? 1
@@ -373,8 +381,118 @@ export async function queryImages(
     throw new ResponseError(message, 404)
   }
 
-  const apiImages = rows.map((image) => fromDbImage(restBaseUrl, image))
+  const rowsById = new Map(rows.map((row) => [row.id, row]))
+  const orderedRows = params.imageIds
+    ? params.imageIds
+        .map((imageId) => rowsById.get(imageId))
+        .filter((row): row is DbImage => row !== undefined)
+    : rows
+  const apiImages = orderedRows.map((image) => fromDbImage(restBaseUrl, image))
   return responseOptions.singular ? apiImages[0] : apiImages
+}
+
+export async function queryRandomImagesByOrganizationIds(
+  restBaseUrl: string,
+  db: Db,
+  params: {
+    organizationIds: string[]
+    georeferenced?: boolean
+    limitPerOrganization: number
+    userRole?: UserRole
+  }
+) {
+  const requestedOrganizations = sql.join(
+    params.organizationIds.map(
+      (organizationId, organizationIndex) =>
+        sql`(
+          ${organizationId}::text,
+          ${generateRandomId()}::text,
+          ${organizationIndex}::integer
+        )`
+    ),
+    sql`, `
+  )
+  const georeferencedFilter =
+    params.georeferenced === undefined
+      ? sql``
+      : params.georeferenced
+        ? sql`AND EXISTS (
+            SELECT 1
+            FROM ${schema.maps} AS map
+            WHERE map.image_id = image.id AND map.latest = true
+          )`
+        : sql`AND NOT EXISTS (
+            SELECT 1
+            FROM ${schema.maps} AS map
+            WHERE map.image_id = image.id AND map.latest = true
+          )`
+
+  const candidateResult = await db.execute<{ id: string }>(sql`
+    WITH requested_organizations (
+      organization_id,
+      random_id,
+      organization_index
+    ) AS (
+      VALUES ${requestedOrganizations}
+    )
+    SELECT random_image.id
+    FROM requested_organizations AS requested_organization
+    CROSS JOIN LATERAL (
+      SELECT candidate.id, candidate.wrap
+      FROM (
+        (
+          SELECT image.id, 0 AS wrap
+          FROM ${schema.images} AS image
+          INNER JOIN ${schema.organizationUrls} AS organization_url
+            ON organization_url.url = image.domain
+          WHERE
+            organization_url.organization_id = requested_organization.organization_id
+            AND image.id > requested_organization.random_id
+            ${georeferencedFilter}
+          ORDER BY image.id
+          LIMIT ${params.limitPerOrganization}
+        )
+        UNION ALL
+        (
+          SELECT image.id, 1 AS wrap
+          FROM ${schema.images} AS image
+          INNER JOIN ${schema.organizationUrls} AS organization_url
+            ON organization_url.url = image.domain
+          WHERE
+            organization_url.organization_id = requested_organization.organization_id
+            AND image.id <= requested_organization.random_id
+            ${georeferencedFilter}
+          ORDER BY image.id
+          LIMIT ${params.limitPerOrganization}
+        )
+      ) AS candidate
+      ORDER BY candidate.wrap, candidate.id
+      LIMIT ${params.limitPerOrganization}
+    ) AS random_image
+    ORDER BY
+      requested_organization.organization_index,
+      random_image.wrap,
+      random_image.id
+  `)
+  const candidateRows = Array.isArray(candidateResult)
+    ? candidateResult
+    : candidateResult.rows
+  const imageIds = candidateRows.map(({ id }) => id)
+
+  if (imageIds.length === 0) {
+    throw new ResponseError('Images not found', 404)
+  }
+
+  return queryImages(
+    restBaseUrl,
+    db,
+    {
+      imageIds,
+      limit: imageIds.length,
+      userRole: params.userRole
+    },
+    { expectRows: true, singular: false }
+  )
 }
 
 export async function queryCanvases(
@@ -478,10 +596,7 @@ export async function queryCanvases(
       }
     },
     orderBy: params.randomCanvasId
-      ? (canvases, { asc, desc }) =>
-          params.randomCanvasIdOp === 'gt'
-            ? asc(canvases.id)
-            : desc(canvases.id)
+      ? (canvases, { asc }) => asc(canvases.id)
       : undefined,
     limit: responseOptions.singular
       ? 1
@@ -605,10 +720,7 @@ export async function queryManifests(
       }
     },
     orderBy: params.randomManifestId
-      ? (manifests, { asc, desc }) =>
-          params.randomManifestIdOp === 'gt'
-            ? asc(manifests.id)
-            : desc(manifests.id)
+      ? (manifests, { asc }) => asc(manifests.id)
       : undefined,
     limit: responseOptions.singular
       ? 1
