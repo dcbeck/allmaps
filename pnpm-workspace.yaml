@@ -85,7 +85,7 @@ catalog:
   '@types/leaflet': ^1.9.4
   d3-geo: ^3.1.1
   leaflet: ^1.9.4
-  maplibre-gl: ^6.4
+  maplibre-gl: ^6.6
   ol: ^10.8.0
   pmtiles: ^4.3.0
   point-in-polygon-hao: ^1.2.4
@@ -108,4 +108,4 @@ catalog:
 
 # Keep Elysia's optional Exact Mirror peer on the compatible release.
 overrides:
-  'elysia@1.4.29>exact-mirror': 'catalog:'
+  exact-mirror: 0.2.7
