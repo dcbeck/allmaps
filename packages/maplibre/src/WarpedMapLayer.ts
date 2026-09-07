@@ -1,4 +1,8 @@
-import { Map as MaplibreMap, CustomLayerInterface } from 'maplibre-gl'
+import {
+  Map as MaplibreMap,
+  Event as MaplibreEvent,
+  CustomLayerInterface
+} from 'maplibre-gl'
 
 import { WebGL2Renderer } from '@allmaps/render/webgl2'
 import { MaskOptions, Viewport, WarpedMapEvent } from '@allmaps/render'
@@ -23,7 +27,9 @@ import { computeWarpedMapBearing } from '@allmaps/bearing'
 import type {
   CameraForBoundsOptions,
   CenterZoomBearing,
-  LngLatBoundsLike
+  Evented,
+  LngLatBoundsLike,
+  MapContextEvent
 } from 'maplibre-gl'
 
 import type { Rectangle, Point, Fit, Size } from '@allmaps/types'
@@ -75,6 +81,14 @@ export class WarpedMapLayer
 
   map?: MaplibreMap
 
+  private onContextLost = (event: MapContextEvent) => {
+    this.contextLost(event.originalEvent)
+  }
+
+  private onContextRestored = (event: MapContextEvent) => {
+    this.contextRestored(event.originalEvent)
+  }
+
   /**
    * Creates a WarpedMapLayer instance
    *
@@ -101,8 +115,8 @@ export class WarpedMapLayer
 
     this.addEventListeners()
 
-    this.map.on('webglcontextlost', this.contextLost.bind(this))
-    this.map.on('webglcontextrestored', this.contextRestored.bind(this))
+    this.map.on('webglcontextlost', this.onContextLost)
+    this.map.on('webglcontextrestored', this.onContextRestored)
   }
 
   /**
@@ -115,8 +129,8 @@ export class WarpedMapLayer
 
     this.removeEventListeners()
 
-    this.map?.off('webglcontextlost', this.contextLost.bind(this))
-    this.map?.off('webglcontextrestored', this.contextRestored.bind(this))
+    this.map?.off('webglcontextlost', this.onContextLost)
+    this.map?.off('webglcontextrestored', this.onContextRestored)
 
     this.renderer.destroy()
   }
@@ -397,11 +411,15 @@ export class WarpedMapLayer
   nativePassWarpedMapEvent(event: Event) {
     if (event instanceof WarpedMapEvent) {
       if (this.map) {
-        this.map.fire(event.type, {
-          ...event.data,
-          error: event.error,
-          layerId: this.id
-        })
+        // Allmaps events extend the built-in MapLibre map event names.
+        const eventedMap = this.map as Evented
+        eventedMap.fire(
+          new MaplibreEvent(event.type, {
+            ...event.data,
+            error: event.error,
+            layerId: this.id
+          })
+        )
       }
     }
   }

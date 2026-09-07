@@ -170,12 +170,8 @@ export function getEditorMapGuideProgress({
       imageNumber: imageNumbersById.get(imageId) ?? 1,
       imageLabel: getImageLabel(sourceState, imageId, locale)
     }))
-  const mapsNeedingGeoreferencing = mapProgress
-    .filter((map) => !map.complete)
-    .map(({ complete, ...map }) => map)
-  const exportReadyMaps = mapProgress
-    .filter((map) => map.complete)
-    .map(({ complete, ...map }) => map)
+  const mapsNeedingGeoreferencing = mapProgress.filter((map) => !map.complete)
+  const exportReadyMaps = mapProgress.filter((map) => map.complete)
   const mapCount = inactiveMaps.length + activeMaps.length
   const georeferencedMapCount =
     inactiveMaps.filter(
