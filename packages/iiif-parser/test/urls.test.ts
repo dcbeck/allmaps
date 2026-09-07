@@ -73,6 +73,22 @@ const preferredFormatTests = [
     preferredFormats: ['avif'],
     expectedUrl:
       'https://iiif.io/api/image/3.0/example/reference/918ecd18c2592080851777620de9bcb5-gottingen/0,0,512,512/256,256/0/default.jpg'
+  },
+  {
+    filename: 'image.3.918ecd18c2592080851777620de9bcb5-gottingen.json',
+    region: { x: 0, y: 0, width: 512, height: 512 },
+    size: { width: 256, height: 256 },
+    preferredFormats: [],
+    expectedUrl:
+      'https://iiif.io/api/image/3.0/example/reference/918ecd18c2592080851777620de9bcb5-gottingen/0,0,512,512/256,256/0/default.jpg'
+  },
+  // No preferredFormats specified: falls back to the first server's preferred format from the image JSON
+  {
+    filename: 'image.3.918ecd18c2592080851777620de9bcb5-gottingen.json',
+    region: { x: 0, y: 0, width: 512, height: 512 },
+    size: { width: 256, height: 256 },
+    expectedUrl:
+      'https://iiif.io/api/image/3.0/example/reference/918ecd18c2592080851777620de9bcb5-gottingen/0,0,512,512/256,256/0/default.webp'
   }
 ]
 
