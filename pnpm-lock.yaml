@@ -148,7 +148,7 @@ catalogs:
       specifier: ^4.17
       version: 4.18.1
     maplibre-gl:
-      specifier: ^6.4
+      specifier: ^6.6
       version: 6.7.0
     ml-matrix:
       specifier: ^6.12.0
