@@ -201,6 +201,9 @@ export class EmbeddedImage {
         this.supportsAnyRegionAndSize = false
         this.supportedFormats = ['jpg']
       }
+      if ('preferredFormats' in imageService) {
+        this.preferredFormats = imageService.preferredFormats
+      }
 
       if (imageService.width) {
         width = imageService.width
